@@ -1,0 +1,16 @@
+<!-- wp:template-part {"slug":"header","area":"header"} /-->
+<!-- wp:group {"tagName":"main","layout":{"type":"constrained"}} -->
+<main>
+  <!-- wp:search {"label":"جستجو","showLabel":false,"buttonText":"جستجو"} /-->
+  <!-- wp:query-title {"type":"search"} /-->
+  <!-- wp:query {"queryId":3,"query":{"perPage":10,"postType":"any","search":"","inherit":true}} -->
+    <div class="wp-block-query">
+      <!-- wp:post-template -->
+        <!-- wp:post-title {"isLink":true} /-->
+        <!-- wp:post-excerpt /-->
+      <!-- /wp:post-template -->
+    </div>
+  <!-- /wp:query -->
+</main>
+<!-- /wp:group -->
+<!-- wp:template-part {"slug":"footer","area":"footer"} /-->
