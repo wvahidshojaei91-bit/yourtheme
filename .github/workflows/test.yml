@@ -1,20 +1,34 @@
-name: Test SamKirkland FTP Action
+name: Deploy Theme to Hosting (FTP/FTPS)
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Test FTP Action
-        uses: SamKirkland/FTP-Deploy-Action@master
+      - name: FTP/FTPS Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5   # حتماً S و K بزرگ
         with:
-          server: "example.com"
-          username: "test"
-          password: "test"
-          local-dir: ./
-          server-dir: ./
+          server:   ${{ secrets.FTP_HOST_STG }}       # ftp.witroviptest.ir
+          username: ${{ secrets.FTP_USER_STG }}       # witromag@witroviptest.ir
+          password: ${{ secrets.FTP_PASS_STG }}
+          port:     ${{ secrets.FTP_PORT_STG }}       # 21
+          protocol: ftps                              # Explicit FTPS روی 21
+          local-dir: ./                               # ریشه‌ی ریپو = پوشه‌ی تم
+          server-dir: ${{ secrets.REMOTE_PATH_STG }}  # wp-content/themes/yourtheme/
+          dangerous-clean-slate: false
+          timeout: 120000                              # 120s
+          log-level: verbose                           # لاگ دقیق
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/vendor/**
+            **/*.map
+            wp-content/uploads/**
