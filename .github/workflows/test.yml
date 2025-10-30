@@ -1,0 +1,20 @@
+name: Test SamKirkland FTP Action
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test FTP Action
+        uses: SamKirkland/FTP-Deploy-Action@v4
+        with:
+          server: "example.com"
+          username: "test"
+          password: "test"
+          local-dir: ./
+          server-dir: ./
