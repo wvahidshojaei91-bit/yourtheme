@@ -2,8 +2,8 @@ name: Deploy Theme to Hosting (FTP)
 
 on:
   push:
-    branches: [ main ]     # هر بار push روی main → دیپلوی خودکار
-  workflow_dispatch:        # اجرای دستی از تب Actions
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,25 +12,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # اگر build فرانت‌اند داری، این بخش رو فعال کن
-      # - name: Build assets
-      #   run: |
-      #     npm ci
-      #     npm run build
-
-      - with:
-  server:   ${{ secrets.FTP_HOST_STG }}
-  username: ${{ secrets.FTP_USER_STG }}
-  password: ${{ secrets.FTP_PASS_STG }}
-  port:     ${{ secrets.FTP_PORT_STG }}
-  protocol: ftp
-  local-dir: ./
-  server-dir: ${{ secrets.REMOTE_PATH_STG }}
-  dangerous-clean-slate: false
-  exclude:  |
+      - name: FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4   # 👈 حتماً با S و K بزرگ
+        with:
+          server:   ${{ secrets.FTP_HOST_STG }}
+          username: ${{ secrets.FTP_USER_STG }}
+          password: ${{ secrets.FTP_PASS_STG }}
+          port:     ${{ secrets.FTP_PORT_STG }}
+          protocol: ftp
+          local-dir: ./
+          server-dir: ${{ secrets.REMOTE_PATH_STG }}   # مقدار سکرت مثلاً wp-content/themes/yourtheme/
+          dangerous-clean-slate: false
+          exclude: |
             **/.git*
             **/.github/**
             **/node_modules/**
             **/vendor/**
             **/*.map
-            wp-content/themes/yourtheme/**
+            wp-content/uploads/**
