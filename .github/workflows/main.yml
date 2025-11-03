@@ -1,35 +1,48 @@
-name: Deploy Theme to Hosting (FTP/FTPS)
+name: Deploy Theme to Hosting (SFTP)
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ]     # هر بار push روی main → دیپلوی شود
+  workflow_dispatch:        # اجرای دستی
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
+      # 1️⃣ دریافت کد از ریپو
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: FTP/FTPS Deploy
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      # (اختیاری) اگر build لازم داری مثل Tailwind یا npm
+      # - name: Build assets
+      #   run: |
+      #     npm ci
+      #     npm run build
+
+      # 2️⃣ چک کردن اینکه سکرت‌ها وجود دارند یا نه (خیلی مهم!)
+      - name: Validate secrets
+        run: |
+          for secret in SFTP_HOST SFTP_USER SFTP_PORT SFTP_REMOTE_DIR; do
+            if [ -z "${{ secrets[$secret] }}" ]; then
+              echo "❌ Missing secret: $secret" && exit 1
+            fi
+          done
+          echo "✅ All required secrets exist."
+
+      # 3️⃣ چاپ مسیر مقصد برای اطمینان
+      - name: Target info
+        run: echo "Deploying to ${{ secrets.SFTP_HOST }}:${{ secrets.SFTP_PORT }} → ${{ secrets.SFTP_REMOTE_DIR }}"
+
+      # 4️⃣ دیپلوی از طریق SFTP
+      - name: SFTP Deploy
+        uses: wlixcc/SFTP-Deploy-Action@v1.2
         with:
-          server:   ${{ secrets.FTP_HOST_STG }}
-          username: ${{ secrets.FTP_USER_STG }}
-          password: ${{ secrets.FTP_PASS_STG }}
-          port:     ${{ secrets.FTP_PORT_STG }}
-          protocol: ftps
-          security: loose
-          local-dir: ./
-          server-dir: ${{ secrets.REMOTE_PATH_STG }}
-          dangerous-clean-slate: false
-          timeout: 180000
-          log-level: verbose
-          exclude: |
-            **/.git*
-            **/.github/**
-            **/node_modules/**
-            **/vendor/**
-            **/*.map
-            wp-content/uploads/**
+          server:   ${{ secrets.SFTP_HOST }}
+          port:     ${{ secrets.SFTP_PORT }}
+          username: ${{ secrets.SFTP_USER }}
+          password: ${{ secrets.SFTP_PASS }}       # اگر کلید استفاده می‌کنی این خط رو حذف کن
+          # ssh-private-key: ${{ secrets.SFTP_KEY }}   # اگر SFTP با کلید → این خط رو فعال کن و خط password حذف شود
+          local_path: ./                            # ریشه ریپو (تم وردپرس شما)
+          remote_path: ${{ secrets.SFTP_REMOTE_DIR }}
+          args: "-o StrictHostKeyChecking=no"
