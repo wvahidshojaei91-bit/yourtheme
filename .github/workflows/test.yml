@@ -3,7 +3,7 @@
   with:
     server:   ${{ secrets.FTP_HOST_STG }}       # مثلا: ftp.witroviptest.ir
     username: ${{ secrets.FTP_USER_STG }}
-    password: ${{ secrets.FTP_PASS_STG }}
+    password: ${{ secrets.FTP_PASS_STG }}ؤؤ
     port:     ${{ secrets.FTP_PORT_STG }}       # 21
     protocol: ftps                               # FTPS (Explicit TLS)
     security: loose                              # 👈 مهم: TLS رو کمی شُل می‌کنه
