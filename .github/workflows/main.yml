@@ -1,48 +1,35 @@
-name: Deploy Theme to Hosting (SFTP)
+name: Deploy Theme to Hosting (FTPS)
 
 on:
   push:
-    branches: [ main ]     # هر بار push روی main → دیپلوی شود
-  workflow_dispatch:        # اجرای دستی
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      # 1️⃣ دریافت کد از ریپو
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # (اختیاری) اگر build لازم داری مثل Tailwind یا npm
-      # - name: Build assets
-      #   run: |
-      #     npm ci
-      #     npm run build
-
-      # 2️⃣ چک کردن اینکه سکرت‌ها وجود دارند یا نه (خیلی مهم!)
-      - name: Validate secrets
-        run: |
-          for secret in SFTP_HOST SFTP_USER SFTP_PORT SFTP_REMOTE_DIR; do
-            if [ -z "${{ secrets[$secret] }}" ]; then
-              echo "❌ Missing secret: $secret" && exit 1
-            fi
-          done
-          echo "✅ All required secrets exist."
-
-      # 3️⃣ چاپ مسیر مقصد برای اطمینان
-      - name: Target info
-        run: echo "Deploying to ${{ secrets.SFTP_HOST }}:${{ secrets.SFTP_PORT }} → ${{ secrets.SFTP_REMOTE_DIR }}"
-
-      # 4️⃣ دیپلوی از طریق SFTP
-      - name: SFTP Deploy
-        uses: wlixcc/SFTP-Deploy-Action@v1.2
+      - name: FTPS Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server:   ${{ secrets.SFTP_HOST }}
-          port:     ${{ secrets.SFTP_PORT }}
-          username: ${{ secrets.SFTP_USER }}
-          password: ${{ secrets.SFTP_PASS }}       # اگر کلید استفاده می‌کنی این خط رو حذف کن
-          # ssh-private-key: ${{ secrets.SFTP_KEY }}   # اگر SFTP با کلید → این خط رو فعال کن و خط password حذف شود
-          local_path: ./                            # ریشه ریپو (تم وردپرس شما)
-          remote_path: ${{ secrets.SFTP_REMOTE_DIR }}
-          args: "-o StrictHostKeyChecking=no"
+          server:   ${{ secrets.FTP_HOST_STG }}
+          username: ${{ secrets.FTP_USER_STG }}
+          password: ${{ secrets.FTP_PASS_STG }}
+          port:     ${{ secrets.FTP_PORT_STG }}
+          protocol: ftps                # Explicit TLS روی پورت 21
+          security: loose               # TLS کمتر سخت‌گیرانه (پرهیز از TLS/ECONNRESET)
+          local-dir: ./                 # چون خود ریپو = پوشه‌ی تم
+          server-dir: ${{ secrets.REMOTE_PATH_STG }}
+          timeout: 180000
+          log-level: verbose
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/vendor/**
+            **/*.map
+            wp-content/uploads/**
