@@ -1,4 +1,4 @@
-name: Deploy via FTP
+name: Deploy via FTP (staging)
 
 on:
   push:
@@ -12,39 +12,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate secrets
+      - name: Validate STG secrets
         run: |
-          test -n "${{ secrets.FTP_HOST }}"        || (echo "FTP_HOST missing" && exit 1)
-          test -n "${{ secrets.FTP_USER }}"        || (echo "FTP_USER missing" && exit 1)
-          test -n "${{ secrets.FTP_PASS }}"        || (echo "FTP_PASS missing" && exit 1)
-          test -n "${{ secrets.FTP_PORT }}"        || (echo "FTP_PORT missing" && exit 1)
-          test -n "${{ secrets.FTP_REMOTE_DIR }}"  || (echo "FTP_REMOTE_DIR missing" && exit 1)
-          case "${{ secrets.FTP_REMOTE_DIR }}" in
+          test -n "${{ secrets.FTP_HOST_STG }}"       || (echo "FTP_HOST_STG missing" && exit 1)
+          test -n "${{ secrets.FTP_USER_STG }}"       || (echo "FTP_USER_STG missing" && exit 1)
+          test -n "${{ secrets.FTP_PASS_STG }}"       || (echo "FTP_PASS_STG missing" && exit 1)
+          test -n "${{ secrets.FTP_PORT_STG }}"       || (echo "FTP_PORT_STG missing" && exit 1)
+          test -n "${{ secrets.REMOTE_PATH_STG }}"    || (echo "REMOTE_PATH_STG missing" && exit 1)
+          case "${{ secrets.REMOTE_PATH_STG }}" in
             */) echo "server dir ok";;
-            *)  echo "FTP_REMOTE_DIR must end with /"; exit 1;;
+            *)  echo "REMOTE_PATH_STG must end with /"; exit 1;;
           esac
 
-      - name: Deploy via FTP
+      - name: Deploy via FTP (STG)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server:   ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          port:     ${{ secrets.FTP_PORT }}   # معمولا 21
-          protocol: ftp
-          local-dir: ./
-          # نکته مهم: اگر لاگین FTP دقیقا داخل پوشه تم باز می‌شود، این مقدار را "./" بگذار.
-          # اگر بالاتر (مثل public_html یا mag) باز می‌شود، مسیر نسبی تا پوشه تم را بده، مثل:
-          # public_html/wp-content/themes/yourtheme/
-          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
-          # اگر می‌خواهی فولدر تم روی سرور 100% آینه‌ی ریپو شود (فایل اضافی پاک شود) این را true کن:
+          server:     ${{ secrets.FTP_HOST_STG }}
+          username:   ${{ secrets.FTP_USER_STG }}
+          password:   ${{ secrets.FTP_PASS_STG }}
+          port:       ${{ secrets.FTP_PORT_STG }}
+          protocol:   ftp
+          local-dir:  ./
+          server-dir: ${{ secrets.REMOTE_PATH_STG }}
           dangerous-clean-slate: true
           exclude: |
             **/.git/**
-            **/.git*
             **/.github/**
             **/node_modules/**
             **/vendor/**
             **/*.map
             wp-content/uploads/**
-
