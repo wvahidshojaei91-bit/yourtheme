@@ -6,7 +6,7 @@ figure figcaption{opacity:.8;font-size:.875rem}
 
 /* Header styles */
 :root{
-  --yt-header-bg: #141414;
+  --yt-header-bg: #ff0000;
   --yt-header-text: #ffffff;
   --yt-accent: #FA951D; /* menu hover/active */
   --yt-cta-bg: #F6F6F5;
