@@ -365,3 +365,10 @@ img.custom-logo{ max-width: none; height: auto; }
 @media (max-width: 991px){ .hl-post{ grid-template-columns: 1fr; } .hl-thumb{ grid-column:auto; } .hl-body{ grid-column:auto; } }
 .hl-pagination{ margin-top:12px; text-align:center; }
 .hl-pagination .hl-page{ margin:0 4px; }
+
+/* Force header background to default (safety override) */
+.yt-header[data-variant='desktop'],
+.yt-header--mobile,
+.yt-drawer{
+  background:#141414 !important;
+}
