@@ -10,7 +10,7 @@
     local-dir: ./
     server-dir: ${{ secrets.REMOTE_PATH_STG }}   # مثلا: witroviptest.ir/witromag/wp-content/themes/yourtheme/
     timeout: 180000                              # 180s
-    log-level: verbose                           # لاگ دقیق‌تر
+    log-level: verbose                           # لاگ دقیق‌
     dangerous-clean-slate: false
     exclude: |
       **/.git*
