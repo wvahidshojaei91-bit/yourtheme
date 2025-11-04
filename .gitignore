@@ -1,0 +1,47 @@
+# ===============================
+#   WordPress / Theme Git Ignore
+# ===============================
+
+# 🧭 Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# 🧩 Build / dependencies
+node_modules/
+vendor/
+dist/
+build/
+
+# ⚙️ Config / secrets
+.env
+wp-config.php
+
+# 📁 Project scope note: repo is the theme folder, so no need to ignore other wp-content paths
+
+# 🧹 Temporary / backup files
+*.sql
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+*.bak
+
+# 🔧 Additional common ignores for themes
+.cache/
+.parcel-cache/
+coverage/
+*.map
+*.swp
+*.swo
+*.orig
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# .env variants (keep examples)
+.env*
+!.env.example
