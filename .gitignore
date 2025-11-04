@@ -45,3 +45,15 @@ pnpm-debug.log*
 # .env variants (keep examples)
 .env*
 !.env.example
+
+# Requested minimum ignores
+.git/
+.github/
+node_modules/
+vendor/
+src/
+*.map
+wp-content/uploads/
+wp-config.php
+.DS_Store
+Thumbs.db
