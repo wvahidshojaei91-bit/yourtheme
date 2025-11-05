@@ -406,3 +406,22 @@ add_action('template_redirect', function () {
     exit;
   }
 });
+
+/**
+ * Local-only override: force header background to green with !important.
+ * Applies on localhost/127.0.0.1/.local/.test or non-production WP envs.
+ */
+add_action('wp_head', function(){
+  $env  = function_exists('wp_get_environment_type') ? wp_get_environment_type() : '';
+  $host = wp_parse_url(home_url(), PHP_URL_HOST);
+  $is_local_host = in_array($host, ['localhost','127.0.0.1'], true) || (is_string($host) && preg_match('/\.(local|test)$/i', $host));
+  $is_dev_env    = ($env && $env !== 'production');
+  if (!($is_local_host || $is_dev_env)) return;
+
+  $green = '#16a34a';
+  echo "\n<style id=\"yourtheme-local-header-override\">\n";
+  // Ensure variable override and direct background fallback both win.
+  echo ":root{ --yt-header-bg: {$green} !important; }\n";
+  echo ".yt-header[data-variant=\"desktop\"], .yt-header--mobile, .yt-drawer{ background: {$green} !important; }\n";
+  echo "</style>\n";
+}, 100);
