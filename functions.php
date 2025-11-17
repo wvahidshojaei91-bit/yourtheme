@@ -22,6 +22,7 @@ add_action('after_setup_theme', function () {
   add_theme_support('html5', ['search-form','comment-form','comment-list','gallery','caption','style','script','navigation-widgets']);
   add_theme_support('wp-block-styles');
   add_theme_support('editor-styles');
+  add_editor_style('assets/css/main.css');
   add_theme_support('automatic-feed-links');
   add_theme_support('custom-logo', [
     'height'      => 64,
@@ -96,6 +97,19 @@ add_action('wp_enqueue_scripts', function () {
   // Load Google reCAPTCHA on front page (for newsletter form). Replace site key in markup.
   if (is_front_page()) {
     wp_enqueue_script('google-recaptcha', 'https://www.google.com/recaptcha/api.js', [], null, true);
+  }
+});
+
+add_action('enqueue_block_editor_assets', function () {
+  $editor_script = get_stylesheet_directory().'/assets/js/editor.js';
+  if (file_exists($editor_script)) {
+    wp_enqueue_script(
+      'yourtheme-editor-blocks',
+      get_stylesheet_directory_uri().'/assets/js/editor.js',
+      ['wp-blocks','wp-dom-ready','wp-i18n'],
+      filemtime($editor_script),
+      true
+    );
   }
 });
 
@@ -228,44 +242,82 @@ function yourtheme_render_hs_posts($cat, $sort='latest'){
 
   $q = new WP_Query($args);
   ob_start();
-  echo '<div class="hs-posts">';
+  $featured_html = '';
+  $list_html = '';
   $i = 0;
-  if ($q->have_posts()): while ($q->have_posts()): $q->the_post(); $i++;
-    $img = get_the_post_thumbnail_url(get_the_ID(), $i === 1 ? 'large' : 'medium');
-    $cls = $i === 1 ? 'hs-post hs-post--featured' : 'hs-post';
-    echo '<article class="'.esc_attr($cls).'">';
-      echo '<a class="hs-post__thumb" href="'.esc_url(get_permalink()).'" style="'.($img ? 'background-image:url('.esc_url($img).');' : '').'" aria-label="'.esc_attr(get_the_title()).'"></a>';
-      echo '<div class="hs-post__body">';
-        if ($i === 1){ $cats = get_the_category(); if ($cats){ echo '<span class="hs-post__cat">'.esc_html($cats[0]->name).'</span>'; } }
-        $title_tag = $i === 1 ? 'h3' : 'h4';
-        echo '<'.$title_tag.' class="hs-post__title"><a href="'.esc_url(get_permalink()).'">'.esc_html(get_the_title()).'</a></'.$title_tag.'>';
-        echo '<div class="hs-post__meta"><time datetime="'.esc_attr(get_the_date('c')).'">'.esc_html(get_the_date()).'</time></div>';
-        if ($i === 1){ echo '<p class="hs-post__excerpt">'.esc_html( wp_trim_words( get_the_excerpt(), 26 ) ).'</p>'; }
-      echo '</div>';
-    echo '</article>';
-  endwhile; wp_reset_postdata(); else:
-    echo '<p class="hs-empty">'.esc_html__('No posts found.','yourtheme').'</p>';
+  if ($q->have_posts()):
+    while ($q->have_posts()): $q->the_post(); $i++;
+      $is_featured = ($i === 1);
+      $img = get_the_post_thumbnail_url(get_the_ID(), $is_featured ? 'large' : 'medium');
+      $cls = $is_featured ? 'hs-post hs-post--featured' : 'hs-post';
+      $title_tag = $is_featured ? 'h3' : 'h4';
+      $cat_span = '';
+      if ($is_featured){
+        $cats = get_the_category();
+        if ($cats){
+          $cat_span = '<span class="hs-post__cat">'.esc_html($cats[0]->name).'</span>';
+        }
+      }
+
+      $thumb  = '<a class="hs-post__thumb" href="'.esc_url(get_permalink()).'" style="'.($img ? 'background-image:url('.esc_url($img).');' : '').'" aria-label="'.esc_attr(get_the_title()).'">';
+      if ($cat_span){
+        $thumb .= $cat_span;
+      }
+      $thumb .= '</a>';
+
+      $article  = '<article class="'.esc_attr($cls).'">';
+      $article .= $thumb;
+      $article .= '<div class="hs-post__body">';
+      $article .= '<'.$title_tag.' class="hs-post__title"><a href="'.esc_url(get_permalink()).'">'.esc_html(get_the_title()).'</a></'.$title_tag.'>';
+      $article .= '<div class="hs-post__meta"><time datetime="'.esc_attr(get_the_date('c')).'">'.esc_html(get_the_date()).'</time></div>';
+      if ($is_featured){
+        $article .= '<p class="hs-post__excerpt">'.esc_html( wp_trim_words( get_the_excerpt(), 26 ) ).'</p>';
+      }
+      $article .= '</div>';
+      $article .= '</article>';
+
+      if ($is_featured){
+        $featured_html .= $article;
+      } else {
+        $list_html .= $article;
+      }
+    endwhile;
+    wp_reset_postdata();
   endif;
+
+  echo '<div class="hs-posts">';
+  if ($featured_html || $list_html){
+    echo '<div class="hs-posts__col hs-posts__col--featured">'.$featured_html.'</div>';
+    echo '<div class="hs-posts__col hs-posts__col--list">'.$list_html.'</div>';
+  } else {
+    echo '<p class="hs-empty">'.esc_html__('No posts found.','yourtheme').'</p>';
+  }
   echo '</div>';
+
   return ob_get_clean();
 }
 
 /**
  * Render helper: Full listing (no sidebar), 6 per page with pagination
  */
-function yourtheme_render_listing($sort='latest', $paged=1){
+function yourtheme_render_listing($sort='latest', $paged=1, $cat_id = null){
   $orderby = 'date'; $order = 'DESC';
   if ($sort === 'popular') { $orderby = 'comment_count'; $order = 'DESC'; }
   if ($sort === 'oldest')  { $orderby = 'date';          $order = 'ASC';  }
 
-  $q = new WP_Query([
+  $args = [
     'posts_per_page' => 6,
     'paged'          => max(1, intval($paged)),
     'post_status'    => 'publish',
     'ignore_sticky_posts' => true,
     'orderby' => $orderby,
     'order'   => $order,
-  ]);
+  ];
+  if ($cat_id) {
+    $args['cat'] = (int) $cat_id;
+  }
+
+  $q = new WP_Query($args);
 
   ob_start();
   echo '<div class="hl-posts">';
@@ -317,7 +369,7 @@ add_action('wp_ajax_yourtheme_load_posts', function(){
   }
   if ($layout === 'listing'){
     $paged = isset($req['paged']) ? intval($req['paged']) : 1;
-    $html = yourtheme_render_listing($sort, $paged);
+    $html = yourtheme_render_listing($sort, $paged, $cat ? intval($cat) : null);
   } else {
     if (!$cat){ wp_send_json_error(['message'=>'missing cat'], 400); }
     $html = yourtheme_render_hs_posts($cat, $sort);
@@ -337,7 +389,7 @@ add_action('wp_ajax_nopriv_yourtheme_load_posts', function(){
   }
   if ($layout === 'listing'){
     $paged = isset($req['paged']) ? intval($req['paged']) : 1;
-    $html = yourtheme_render_listing($sort, $paged);
+    $html = yourtheme_render_listing($sort, $paged, $cat ? intval($cat) : null);
   } else {
     if (!$cat){ wp_send_json_error(['message'=>'missing cat'], 400); }
     $html = yourtheme_render_hs_posts($cat, $sort);
@@ -407,21 +459,191 @@ add_action('template_redirect', function () {
   }
 });
 
-/**
- * Local-only override: force header background to green with !important.
- * Applies on localhost/127.0.0.1/.local/.test or non-production WP envs.
- */
-add_action('wp_head', function(){
-  $env  = function_exists('wp_get_environment_type') ? wp_get_environment_type() : '';
-  $host = wp_parse_url(home_url(), PHP_URL_HOST);
-  $is_local_host = in_array($host, ['localhost','127.0.0.1'], true) || (is_string($host) && preg_match('/\.(local|test)$/i', $host));
-  $is_dev_env    = ($env && $env !== 'production');
-  if (!($is_local_host || $is_dev_env)) return;
+// Removed: local-only header color override. Header color now uses theme variable.
 
-  $green = '#16a34a';
-  echo "\n<style id=\"yourtheme-local-header-override\">\n";
-  // Ensure variable override and direct background fallback both win.
-  echo ":root{ --yt-header-bg: {$green} !important; }\n";
-  echo ".yt-header[data-variant=\"desktop\"], .yt-header--mobile, .yt-drawer{ background: {$green} !important; }\n";
-  echo "</style>\n";
-}, 100);
+function mytheme_enqueue_styles() {
+    // لود فونت دانا
+    wp_enqueue_style(
+        'dana-fonts',
+        get_template_directory_uri() . '/assets/css/fonts.css',
+        array(),
+        null
+    );
+
+    // لود استایل اصلی قالب
+    wp_enqueue_style(
+        'mytheme-style',
+        get_stylesheet_uri(),
+        array('dana-fonts'),
+        wp_get_theme()->get('Version')
+    );
+}
+add_action('wp_enqueue_scripts', 'mytheme_enqueue_styles');
+
+/**
+ * Estimated reading time helpers for single template.
+ */
+function yourtheme_get_reading_time($post_id = null){
+  $post = get_post($post_id);
+  if (!$post){
+    return 1;
+  }
+  $content = wp_strip_all_tags($post->post_content);
+  $tokens  = preg_split('/\s+/u', trim($content), -1, PREG_SPLIT_NO_EMPTY);
+  $word_count = is_array($tokens) ? count($tokens) : 0;
+  $minutes = max(1, (int) ceil($word_count / 190));
+  return $minutes;
+}
+
+function yourtheme_get_reading_time_text($post_id = null){
+  $minutes = yourtheme_get_reading_time($post_id);
+  return sprintf(_n('%d دقیقه مطالعه', '%d دقیقه مطالعه', $minutes, 'yourtheme'), $minutes);
+}
+add_filter('comment_form_default_fields', 'yourtheme_customize_comment_fields');
+add_filter('comment_form_fields', 'yourtheme_reorder_comment_fields');
+add_filter('comment_form_field_cookies', 'yourtheme_update_cookie_consent_label');
+add_filter('the_content', 'yourtheme_capture_headings', 5);
+
+$yourtheme_single_headings = [];
+
+function yourtheme_customize_comment_fields(array $fields): array {
+  if (isset($fields['url'])) {
+    unset($fields['url']);
+  }
+
+  return $fields;
+}
+
+function yourtheme_reorder_comment_fields(array $fields): array {
+  $ordered = [];
+  foreach (['author', 'email', 'comment', 'cookies'] as $key) {
+    if (isset($fields[$key])) {
+      $ordered[$key] = $fields[$key];
+      unset($fields[$key]);
+    }
+  }
+
+  return $ordered + $fields;
+}
+
+function yourtheme_update_cookie_consent_label(string $field): string {
+  $new_label = 'ذخیره نام و ایمیل  در مرورگر برای زمانی که دوباره دیدگاهی می‌نویسم.';
+  $pattern   = '/(<label[^>]*>)(.*?)(<\/label>)/u';
+  return preg_replace($pattern, '$1' . $new_label . '$3', $field, 1);
+}
+
+function yourtheme_render_comment($comment, $args, $depth) {
+  $tag = ('div' === $args['style']) ? 'div' : 'li';
+  $classes = 'comment-card';
+  ?>
+  <<?php echo esc_attr($tag); ?> <?php comment_class($classes); ?> id="comment-<?php comment_ID(); ?>">
+    <div class="comment-card__body">
+      <div class="comment-card__meta">
+        <div class="comment-card__avatar">
+          <?php echo get_avatar($comment, 56); ?>
+        </div>
+        <div class="comment-card__header">
+          <span class="comment-card__author"><?php echo esc_html(get_comment_author()); ?></span>
+          <time class="comment-card__date" datetime="<?php echo esc_attr(get_comment_date('c')); ?>">
+            <?php echo esc_html(get_comment_date(get_option('date_format'))); ?>
+          </time>
+        </div>
+      </div>
+      <div class="comment-card__text">
+        <?php if ('0' === $comment->comment_approved) : ?>
+          <em><?php esc_html_e('دیدگاه شما در انتظار تایید است.', 'yourtheme'); ?></em>
+        <?php endif; ?>
+        <?php comment_text(); ?>
+      </div>
+    </div>
+  </<?php echo esc_attr($tag); ?>>
+  <?php
+}
+
+function yourtheme_capture_headings(string $content): string {
+  if (! is_singular('post')) {
+    return $content;
+  }
+
+  global $yourtheme_single_headings;
+  $result = yourtheme_process_headings($content, true);
+  $yourtheme_single_headings = $result['headings'];
+
+  return $result['content'];
+}
+
+function yourtheme_process_headings(string $content, bool $ensure_ids = false): array {
+  $headings = [];
+  if (trim($content) === '') {
+    return [
+      'headings' => $headings,
+      'content'  => $content,
+    ];
+  }
+
+  libxml_use_internal_errors(true);
+  $dom = new DOMDocument();
+  $html = '<?xml encoding="utf-8" ?>' . $content;
+  if (! $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD)) {
+    return [
+      'headings' => $headings,
+      'content'  => $content,
+    ];
+  }
+
+  $nodes = $dom->getElementsByTagName('*');
+  $existing_ids = [];
+
+  foreach ($nodes as $node) {
+    $tag = strtolower($node->nodeName);
+    if (! in_array($tag, ['h1', 'h2', 'h3', 'h4'], true)) {
+      continue;
+    }
+
+    $text = trim($node->textContent);
+    if ($text === '') {
+      continue;
+    }
+
+    $id = $node->getAttribute('id');
+    if ($id === '') {
+      $base = sanitize_title($text) ?: 'section';
+      $id = $base;
+    }
+
+    $unique_id = $id;
+    $suffix = 2;
+    while (in_array($unique_id, $existing_ids, true)) {
+      $unique_id = $id . '-' . $suffix;
+      $suffix++;
+    }
+    $existing_ids[] = $unique_id;
+
+    if ($ensure_ids) {
+      $node->setAttribute('id', $unique_id);
+    }
+
+    $headings[] = [
+      'id'    => $unique_id,
+      'text'  => $text,
+      'level' => (int) filter_var($tag, FILTER_SANITIZE_NUMBER_INT),
+    ];
+  }
+
+  $output = $dom->saveHTML();
+  return [
+    'headings' => $headings,
+    'content'  => $output,
+  ];
+}
+
+function yourtheme_get_single_headings(int $post_id): array {
+  global $yourtheme_single_headings;
+  if (! empty($yourtheme_single_headings)) {
+    return $yourtheme_single_headings;
+  }
+
+  $content = get_post_field('post_content', $post_id) ?: '';
+  $result = yourtheme_process_headings($content, false);
+  return $result['headings'];
+}

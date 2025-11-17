@@ -202,10 +202,23 @@
     const sec = document.querySelector('.home-listing');
     if (!sec) return;
     const tabs = sec.querySelector('.hl-tabs');
-    const postsBox = sec.querySelector('.hl-posts');
+    let postsBox = sec.querySelector('.hl-posts');
+    const catId = sec.dataset.catId || '';
     if (!tabs || !postsBox) return;
     const btns = Array.from(tabs.querySelectorAll('.hl-tab[data-sort]'));
     const setActive = (s) => btns.forEach(b => b.classList.toggle('is-active', b.dataset.sort === s));
+    const replacePagination = (nextNav) => {
+      const currentNav = sec.querySelector('.hl-pagination');
+      if (nextNav){
+        if (currentNav){
+          currentNav.replaceWith(nextNav);
+        } else if (postsBox){
+          postsBox.insertAdjacentElement('afterend', nextNav);
+        }
+      } else if (currentNav){
+        currentNav.remove();
+      }
+    };
     setActive('latest');
     btns.forEach(b => b.addEventListener('click', async (ev) => {
       ev.preventDefault();
@@ -218,6 +231,7 @@
         form.append('action','yourtheme_load_posts');
         form.append('layout','listing');
         form.append('sort', sort);
+        if (catId) form.append('cat', catId);
         if (window.yourthemeAjax && yourthemeAjax.nonce){ form.append('_ajax_nonce', yourthemeAjax.nonce); }
         const res = await fetch(ajaxUrl, { method:'POST', body: form, credentials:'same-origin' });
         const data = await res.json();
@@ -225,9 +239,17 @@
           const wrapper = document.createElement('div');
           wrapper.innerHTML = data.data.html;
           const newBox = wrapper.querySelector('.hl-posts');
-          if (newBox){ postsBox.replaceWith(newBox); }
+          const newPagination = wrapper.querySelector('.hl-pagination');
+          if (newBox){
+            postsBox.replaceWith(newBox);
+            postsBox = newBox;
+          }
+          replacePagination(newPagination);
         }
       } catch(e){ console.error(e); }
+      finally{
+        postsBox.classList.remove('is-loading');
+      }
     }));
 
     // AJAX pagination: intercept clicks on listing pagination
@@ -246,6 +268,7 @@
         form.append('layout','listing');
         form.append('sort', sort);
         form.append('paged', paged);
+        if (catId) form.append('cat', catId);
         if (window.yourthemeAjax && yourthemeAjax.nonce){ form.append('_ajax_nonce', yourthemeAjax.nonce); }
         const res = await fetch(ajaxUrl, { method:'POST', body: form, credentials:'same-origin' });
         const data = await res.json();
@@ -253,11 +276,123 @@
           const wrapper = document.createElement('div');
           wrapper.innerHTML = data.data.html;
           const newBox = wrapper.querySelector('.hl-posts');
+          const newPagination = wrapper.querySelector('.hl-pagination');
           const current = sec.querySelector('.hl-posts');
-          if (newBox && current){ current.replaceWith(newBox); window.scrollTo({ top: sec.offsetTop - 24, behavior:'smooth' }); }
+          if (newBox && current){
+            current.replaceWith(newBox);
+            postsBox = newBox;
+            window.scrollTo({ top: sec.offsetTop - 24, behavior:'smooth' });
+          }
+          replacePagination(newPagination);
         }
       } catch(err){ console.error(err); }
     });
   })();
-})();
 
+  // Scroll-to-top progress button
+  (function(){
+    if (!document.body) return;
+    if (document.querySelector('.yt-scroll-top')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'yt-scroll-top';
+    btn.setAttribute('aria-label', 'بازگشت به بالا');
+    btn.setAttribute('title', 'بازگشت به بالا');
+    document.body.appendChild(btn);
+
+    const updateProgress = () => {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop || 0;
+      const scrollHeight = doc.scrollHeight - doc.clientHeight;
+      const progress = scrollHeight > 0 ? Math.min(1, Math.max(0, scrollTop / scrollHeight)) : 0;
+      const percent = Math.round(progress * 100);
+      btn.style.setProperty('--yt-scroll-progress', percent + '%');
+      if (scrollTop > 320){
+        btn.classList.add('is-visible');
+      } else {
+        btn.classList.remove('is-visible');
+      }
+    };
+
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    btn.addEventListener('click', () => {
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      window.scrollTo({ top: 0, behavior });
+    });
+
+    updateProgress();
+  })();
+
+  // Single template: topics toggle & share copy
+  (function(){
+    const toggle = document.querySelector('[data-single-topics-toggle]');
+    const list = document.querySelector('[data-single-topics-list]');
+    if (toggle && list){
+      const desktop = () => window.matchMedia('(max-width: 640px)').matches;
+      const setCollapsed = () => {
+        if (!desktop()){
+          list.classList.add('is-open');
+          toggle.setAttribute('aria-expanded','true');
+        } else {
+          list.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded','false');
+        }
+      };
+      setCollapsed();
+      window.addEventListener('resize', setCollapsed);
+      toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        const next = !expanded;
+        toggle.setAttribute('aria-expanded', String(next));
+        list.classList.toggle('is-open', next);
+      });
+    }
+
+    const copyButtons = Array.from(document.querySelectorAll('[data-share-copy]'));
+    copyButtons.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const url = btn.getAttribute('data-share-url') || location.href;
+        try{
+          if (navigator.clipboard && navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(url);
+          } else {
+            const tmp = document.createElement('textarea');
+            tmp.value = url;
+            document.body.appendChild(tmp);
+            tmp.select();
+            document.execCommand('copy');
+            tmp.remove();
+          }
+          btn.classList.add('is-copied');
+          setTimeout(() => btn.classList.remove('is-copied'), 2000);
+        } catch(err){
+          console.error('Copy failed', err);
+        }
+      });
+    });
+
+    const tocLinks = Array.from(document.querySelectorAll('[data-single-toc-link]'));
+    if (tocLinks.length){
+      const setActive = (target) => {
+        tocLinks.forEach(link => {
+          const isActive = link === target;
+          link.classList.toggle('is-active', isActive);
+          const li = link.closest('li');
+          if (li) li.classList.toggle('is-active', isActive);
+        });
+      };
+      const syncWithHash = () => {
+        const hash = decodeURIComponent(location.hash || '').replace('#', '');
+        if (!hash) return;
+        const match = tocLinks.find(link => link.getAttribute('href') === '#' + hash);
+        if (match) setActive(match);
+      };
+      tocLinks.forEach(link => {
+        link.addEventListener('click', () => setActive(link));
+      });
+      syncWithHash();
+      window.addEventListener('hashchange', syncWithHash);
+    }
+  })();
+})();
