@@ -46,6 +46,34 @@ while (have_posts()) :
   $source_link = get_post_meta($post_id, 'yourtheme_source_link', true);
   $source_label = get_post_meta($post_id, 'yourtheme_source_label', true);
   $toc_headings = yourtheme_get_single_headings($post_id);
+  $mini_feed_markup = '';
+  if ($sidebar_query->have_posts()) {
+    ob_start();
+    while ($sidebar_query->have_posts()) : $sidebar_query->the_post();
+      $thumb = get_the_post_thumbnail_url(get_the_ID(), 'large');
+      $mini_reading = yourtheme_get_reading_time_text(get_the_ID());
+      $mini_date    = get_the_date(get_option('date_format'));
+      $mini_excerpt = wp_trim_words(get_the_excerpt(), 20, '...');
+      ?>
+      <article class="single-mini-feed__item">
+        <a class="single-mini-feed__thumb" href="<?php the_permalink(); ?>" style="<?php echo $thumb ? 'background-image:url(' . esc_url($thumb) . ');' : ''; ?>">
+          <div class="single-mini-feed__meta-bar">
+            <span class="single-mini-feed__meta"><?php echo esc_html($mini_reading); ?></span>
+            <span class="single-mini-feed__meta"><?php echo esc_html($mini_date); ?></span>
+          </div>
+        </a>
+        <div class="single-mini-feed__body">
+          <h4><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h4>
+          <?php if ($mini_excerpt) : ?>
+            <p class="single-mini-feed__excerpt"><?php echo esc_html($mini_excerpt); ?></p>
+          <?php endif; ?>
+        </div>
+      </article>
+      <?php
+    endwhile;
+    $mini_feed_markup = trim(ob_get_clean());
+    wp_reset_postdata();
+  }
   ?>
 
   <main class="single-screen" dir="rtl">
@@ -122,6 +150,33 @@ while (have_posts()) :
             </div>
           </header>
 
+          <section class="single-card single-card--toc single-card--toc-inline">
+            <div class="single-toc__head">
+              <span class="single-toc__icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M3 5h14M7 10h10M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                </svg>
+              </span>
+              <span class="single-toc__title"><?php esc_html_e('سرفصل‌ها', 'yourtheme'); ?></span>
+            </div>
+
+            <span class="single-toc__divider" aria-hidden="true"></span>
+
+            <?php if (! empty($toc_headings)) : ?>
+              <ul class="single-toc">
+                <?php foreach ($toc_headings as $heading) : ?>
+                  <li>
+                    <a href="#<?php echo esc_attr($heading['id']); ?>" data-single-toc-link>
+                      <?php echo esc_html($heading['text']); ?>
+                    </a>
+                  </li>
+                <?php endforeach; ?>
+              </ul>
+            <?php else : ?>
+              <p class="single-toc__empty"><?php esc_html_e('در حال حاضر سرفصلی شناسایی نشد.', 'yourtheme'); ?></p>
+            <?php endif; ?>
+          </section>
+
           <div class="single-content entry-content">
             <?php the_content(); ?>
           </div>
@@ -180,9 +235,17 @@ while (have_posts()) :
 
                 <?php endwhile; ?>
               </div>
-            </section>
-            <?php wp_reset_postdata(); ?>
-          <?php endif; ?>
+          </section>
+          <?php wp_reset_postdata(); ?>
+        <?php endif; ?>
+
+        <?php if (! empty($mini_feed_markup)) : ?>
+          <section class="single-mini-feed-block" aria-label="<?php esc_attr_e('آخرین نوشته‌ها', 'yourtheme'); ?>">
+            <div class="single-mini-feed">
+              <?php echo $mini_feed_markup; ?>
+            </div>
+          </section>
+        <?php endif; ?>
 
           <section class="single-comments" id="comments">
 
@@ -233,41 +296,20 @@ while (have_posts()) :
 
             <?php else : ?>
 
-              <p class="single-toc__empty"><?php esc_html_e('???? ??? ????? ?????? ??? ???? ???.', 'yourtheme'); ?></p>
+              <p class="single-toc__empty"><?php esc_html_e('در حال حاضر سرفصلی شناسایی نشد.', 'yourtheme'); ?></p>
 
             <?php endif; ?>
 
           </section>
 
 
-          <?php if ($sidebar_query->have_posts()) : ?>
-          <section class="single-card single-card--mini-feed">
-            <div class="single-mini-feed">
-              <?php while ($sidebar_query->have_posts()) : $sidebar_query->the_post(); ?>
-                <?php
-                  $thumb = get_the_post_thumbnail_url(get_the_ID(), 'large');
-                  $mini_reading = yourtheme_get_reading_time_text(get_the_ID());
-                  $mini_date    = get_the_date(get_option('date_format'));
-                  $mini_excerpt = wp_trim_words(get_the_excerpt(), 20, '...');
-                ?>
-                <article class="single-mini-feed__item">
-                  <a class="single-mini-feed__thumb" href="<?php the_permalink(); ?>" style="<?php echo $thumb ? 'background-image:url(' . esc_url($thumb) . ');' : ''; ?>">
-                    <div class="single-mini-feed__meta-bar">
-                      <span class="single-mini-feed__meta"><?php echo esc_html($mini_reading); ?></span>
-                      <span class="single-mini-feed__meta"><?php echo esc_html($mini_date); ?></span>
-                    </div>
-                  </a>
-                  <div class="single-mini-feed__body">
-                    <h4><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h4>
-                    <?php if ($mini_excerpt) : ?>
-                      <p class="single-mini-feed__excerpt"><?php echo esc_html($mini_excerpt); ?></p>
-                    <?php endif; ?>
-                  </div>
-                </article>
-              <?php endwhile; ?>
-            </div>
-          </section>
-          <?php wp_reset_postdata(); endif; ?>
+        <?php if (! empty($mini_feed_markup)) : ?>
+        <section class="single-card single-card--mini-feed">
+          <div class="single-mini-feed">
+            <?php echo $mini_feed_markup; ?>
+          </div>
+        </section>
+        <?php endif; ?>
 
           <section class="single-card single-card--cta">
             <div>
