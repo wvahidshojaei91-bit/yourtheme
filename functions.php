@@ -15,6 +15,49 @@ if ( ! defined('YOURTHEME_RECAPTCHA_SECRET') ) {
   define('YOURTHEME_RECAPTCHA_SECRET', '6LcxSPMrAAAAADPkmIvtijley9sv_SDp2UA5uumu');
 }
 
+/**
+ * PHP 8 string helpers are missing on PHP 7.4, so we polyfill the ones WordPress or plugins might call.
+ */
+if (! function_exists('str_contains')) {
+  function str_contains(string $haystack, string $needle): bool {
+    if ($needle === '') {
+      return true;
+    }
+
+    return strpos($haystack, $needle) !== false;
+  }
+}
+
+if (! function_exists('str_starts_with')) {
+  function str_starts_with(string $haystack, string $needle): bool {
+    if ($needle === '') {
+      return true;
+    }
+
+    return strncmp($haystack, $needle, strlen($needle)) === 0;
+  }
+}
+
+if (! function_exists('str_ends_with')) {
+  function str_ends_with(string $haystack, string $needle): bool {
+    if ($needle === '') {
+      return true;
+    }
+
+    return substr($haystack, -strlen($needle)) === $needle;
+  }
+}
+
+if (! function_exists('array_is_list')) {
+  function array_is_list(array $array): bool {
+    if ($array === []) {
+      return true;
+    }
+
+    return array_keys($array) === range(0, count($array) - 1);
+  }
+}
+
 add_action('after_setup_theme', function () {
   add_theme_support('title-tag');
   add_theme_support('post-thumbnails');
@@ -646,4 +689,45 @@ function yourtheme_get_single_headings(int $post_id): array {
   $content = get_post_field('post_content', $post_id) ?: '';
   $result = yourtheme_process_headings($content, false);
   return $result['headings'];
+}
+
+function yourtheme_render_toc_card(array $headings, string $additional_class = ''): string {
+  $classes = ['single-card', 'single-card--toc'];
+  if ($additional_class !== '') {
+    $classes[] = $additional_class;
+  }
+  $class_attr = implode(' ', array_map('sanitize_html_class', array_unique(array_filter($classes))));
+  $title = esc_html__('سرفصل‌ها', 'yourtheme');
+  $empty_text = esc_html__('در حال حاضر سرفصلی شناسایی نشد.', 'yourtheme');
+
+  ob_start();
+  ?>
+  <section class="<?php echo esc_attr($class_attr); ?>">
+    <div class="single-toc__head">
+      <span class="single-toc__icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M3 5h14M7 10h10M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </span>
+      <span class="single-toc__title"><?php echo $title; ?></span>
+    </div>
+
+    <span class="single-toc__divider" aria-hidden="true"></span>
+
+    <?php if (! empty($headings)) : ?>
+      <ul class="single-toc">
+        <?php foreach ($headings as $heading) : ?>
+          <li>
+            <a href="#<?php echo esc_attr($heading['id']); ?>" data-single-toc-link>
+              <?php echo esc_html($heading['text']); ?>
+            </a>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php else : ?>
+      <p class="single-toc__empty"><?php echo $empty_text; ?></p>
+    <?php endif; ?>
+  </section>
+  <?php
+  return trim(ob_get_clean());
 }
